@@ -2,9 +2,10 @@
 """Unit and integration tests for client module"""
 import unittest
 from parameterized import parameterized, parameterized_class
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch, PropertyMock, Mock
 from client import GithubOrgClient
 from fixtures import TEST_PAYLOAD
+import requests
 
 
 class TestGithubOrgClient(unittest.TestCase):
@@ -23,7 +24,7 @@ class TestGithubOrgClient(unittest.TestCase):
             f"https://api.github.com/orgs/{org_name}"
         )
 
-    @patch('client.GithubOrgClient.org')
+    @patch('client.GithubOrgClient.org', new_callable=PropertyMock)
     def test_public_repos_url(self, mock_org):
         """Test _public_repos_url property"""
         mock_org.return_value = {
@@ -81,10 +82,13 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         """Set up class fixtures"""
         cls.get_patcher = patch('requests.get')
         cls.mock_get = cls.get_patcher.start()
-        cls.mock_get.side_effect = [
-            cls.org_payload,
-            cls.repos_payload
-        ]
+
+        def side_effect(url):
+            if url == "https://api.github.com/orgs/google":
+                return Mock(**{'json.return_value': cls.org_payload})
+            return Mock(**{'json.return_value': cls.repos_payload})
+
+        cls.mock_get.side_effect = side_effect
 
     @classmethod
     def tearDownClass(cls):
